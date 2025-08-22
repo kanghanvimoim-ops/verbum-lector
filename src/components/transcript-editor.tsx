@@ -4,6 +4,7 @@ import { useState, useImperativeHandle, forwardRef, useRef } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Languages, Loader2 } from "lucide-react";
+import { flushSync } from 'react-dom';
 
 export interface Sentence {
   id: number;
@@ -54,13 +55,18 @@ export const TranscriptEditor = forwardRef<TranscriptEditorHandle, TranscriptEdi
       newSentences.splice(focusedIndex, 1, updatedSentence);
       newSentences.splice(focusedIndex + 1, 0, newSentence);
       
-      onSentencesChange(newSentences);
+      flushSync(() => {
+        onSentencesChange(newSentences);
+      });
       
+      // 💡 변경 이유: Line Break 후 새로 생긴 입력창에 자동으로 포커스를 이동시키고, 
+      // 해당 위치로 스크롤하여 사용자가 보고 있던 위치를 유지합니다.
       setTimeout(() => {
         const nextTextarea = textareaRefs.current[focusedIndex + 1];
         if (nextTextarea) {
           nextTextarea.focus();
           nextTextarea.setSelectionRange(0, 0);
+          nextTextarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
       }, 0);
     },
@@ -85,6 +91,7 @@ export const TranscriptEditor = forwardRef<TranscriptEditorHandle, TranscriptEdi
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    setFocusedInfo({ index: focusedInfo?.index || 0, cursorPosition: e.currentTarget.selectionStart });
     if (e.key === 'Enter') {
       e.preventDefault();
     }
@@ -102,6 +109,7 @@ export const TranscriptEditor = forwardRef<TranscriptEditorHandle, TranscriptEdi
               onFocus={(e) => handleFocus(index, e)}
               onBlur={handleBlur}
               onKeyDown={handleKeyDown}
+              onClick={(e) => setFocusedInfo({ index, cursorPosition: e.currentTarget.selectionStart })}
               className="w-full font-body bg-background"
               rows={1}
             />

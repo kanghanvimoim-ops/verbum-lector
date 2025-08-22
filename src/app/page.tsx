@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, ChangeEvent, useRef } from "react";
+import { useState, useMemo, ChangeEvent, useRef, useCallback } from "react";
 import {
   FileUp,
   Languages,
@@ -10,6 +10,7 @@ import {
   BookOpen,
   BookCheck,
   Pilcrow,
+  Undo2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -56,9 +57,25 @@ export default function Home() {
     []
   );
 
+  const [history, setHistory] = useState<Sentence[][]>([]);
+
   const transcriptEditorRef = useRef<TranscriptEditorHandle>(null);
 
   const { toast } = useToast();
+
+  const handleSentencesChange = useCallback((newSentences: Sentence[]) => {
+    setHistory(prev => [...prev, editedSentences]);
+    setEditedSentences(newSentences);
+  }, [editedSentences]);
+  
+  const handleUndo = () => {
+    if (history.length > 0) {
+      const previousState = history[history.length - 1];
+      setEditedSentences(previousState);
+      setHistory(prev => prev.slice(0, -1));
+    }
+  };
+
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -78,6 +95,7 @@ export default function Home() {
     setInitialSentences([]);
     setEditedSentences([]);
     setTranslatedSentences([]);
+    setHistory([]);
 
     try {
       setIsDetectingLanguage(true);
@@ -94,8 +112,19 @@ export default function Home() {
         return;
       }
       setDetectedLanguage({...langDetectionResult, languageCode: langCode});
-      setIsDetectingLanguage(false);
       
+    } catch (error) {
+      console.error("Error detecting language:", error);
+      toast({
+        variant: "destructive",
+        title: "Language Detection Error",
+        description: "An error occurred while detecting the language.",
+      });
+    } finally {
+        setIsDetectingLanguage(false);
+    }
+      
+    try {
       setIsConvertingToText(true);
       const textConversionResult = await convertAudioToText({ audioDataUri: dataUri });
       const sentences = textConversionResult.sentences.map(
@@ -103,17 +132,14 @@ export default function Home() {
       );
       setInitialSentences(sentences);
       setEditedSentences(sentences);
-      setIsConvertingToText(false);
-
     } catch (error) {
-      console.error("Error processing audio:", error);
-      toast({
+       console.error("Error converting audio:", error);
+       toast({
         variant: "destructive",
-        title: "Processing Error",
-        description: "An error occurred while processing the audio file.",
+        title: "Audio Conversion Error",
+        description: "An error occurred while converting the audio file.",
       });
     } finally {
-      setIsDetectingLanguage(false);
       setIsConvertingToText(false);
     }
   };
@@ -201,7 +227,7 @@ export default function Home() {
     </Card>
   );
 
-  const isLoading = isDetectingLanguage || isConvertingToText || isTranslating;
+  const isLoading = isDetectingLanguage || isConvertingToText;
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -237,10 +263,16 @@ export default function Home() {
             description="Review and edit the generated text."
             titleAddon={
               initialSentences.length > 0 && (
-                <Button variant="outline" onClick={handleLineBreak}>
-                  <Pilcrow className="mr-2 h-4 w-4" />
-                  Line Break
-                </Button>
+                <div className="flex gap-2">
+                    <Button variant="outline" onClick={handleUndo} disabled={history.length === 0}>
+                        <Undo2 className="mr-2 h-4 w-4" />
+                        Undo
+                    </Button>
+                    <Button variant="outline" onClick={handleLineBreak}>
+                        <Pilcrow className="mr-2 h-4 w-4" />
+                        Line Break
+                    </Button>
+                </div>
               )
             }
           >
@@ -249,7 +281,7 @@ export default function Home() {
                 <TranscriptEditor
                   ref={transcriptEditorRef}
                   sentences={editedSentences}
-                  onSentencesChange={setEditedSentences}
+                  onSentencesChange={handleSentencesChange}
                   onTranslate={handleTranslate}
                   isTranslating={isTranslating}
                 />
@@ -297,5 +329,3 @@ export default function Home() {
     </main>
   );
 }
-
-    
