@@ -1,7 +1,7 @@
 'use server';
 
 /**
- * @fileOverview Converts audio from an uploaded file into text and splits it into sentences.
+ * @fileOverview Converts audio from an uploaded file into text and splits it into subtitle-like chunks.
  *
  * - convertAudioToText - A function that handles the audio-to-text conversion process.
  * - ConvertAudioToTextInput - The input type for the convertAudioToText function.
@@ -22,7 +22,7 @@ export type ConvertAudioToTextInput = z.infer<typeof ConvertAudioToTextInputSche
 
 const ConvertAudioToTextOutputSchema = z.object({
   transcript: z.string().describe('The full transcript of the audio file.'),
-  sentences: z.array(z.string()).describe('An array of sentences from the transcript.'),
+  sentences: z.array(z.string()).describe('An array of subtitle-like chunks from the transcript.'),
 });
 export type ConvertAudioToTextOutput = z.infer<typeof ConvertAudioToTextOutputSchema>;
 
@@ -34,13 +34,19 @@ const audioToTextPrompt = ai.definePrompt({
   name: 'audioToTextPrompt',
   input: {schema: ConvertAudioToTextInputSchema},
   output: {schema: ConvertAudioToTextOutputSchema},
-  prompt: `You are an expert transcriptionist.
+  prompt: `You are an expert transcriptionist who creates subtitles.
 1.  First, transcribe the entire audio provided in the audioDataUri into a single block of text. This will be your 'transcript'.
-2.  Second, split that full transcript into an array of individual sentences. This will be your 'sentences'.
+2.  Second, split that full transcript into an array of short, subtitle-like chunks.
+    - Do not just split by sentence-ending punctuation like periods or question marks.
+    - Split based on natural speaking pauses, commas, and conjunctions.
+    - Each chunk should ideally be around 2-3 seconds of speech.
+    - For Korean, each block should ideally be within 35-40 characters.
+    - Ensure that the chunks are semantically coherent and not split in awkward places.
+    - This result will be your 'sentences'.
 
 Audio: {{media url=audioDataUri}}
 
-Ensure that the final output is a valid JSON object with both a "transcript" field (containing the full text) and a "sentences" field (containing the array of sentences).`,
+Ensure that the final output is a valid JSON object with both a "transcript" field (containing the full text) and a "sentences" field (containing the array of subtitle chunks).`,
 });
 
 const convertAudioToTextFlow = ai.defineFlow(
