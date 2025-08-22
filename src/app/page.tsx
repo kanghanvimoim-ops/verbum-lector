@@ -43,8 +43,10 @@ const languageMap: Record<string, string> = {
 };
 
 export default function Home() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [processingStep, setProcessingStep] = useState("");
+  const [isDetectingLanguage, setIsDetectingLanguage] = useState(false);
+  const [isConvertingToText, setIsConvertingToText] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
+
   const [audioDataUri, setAudioDataUri] = useState<string | null>(null);
   const [detectedLanguage, setDetectedLanguage] =
     useState<DetectLanguageOutput | null>(null);
@@ -72,14 +74,13 @@ export default function Home() {
   };
 
   const processAudio = async (dataUri: string) => {
-    setIsLoading(true);
     setDetectedLanguage(null);
     setInitialSentences([]);
     setEditedSentences([]);
     setTranslatedSentences([]);
 
     try {
-      setProcessingStep("Detecting language...");
+      setIsDetectingLanguage(true);
       const langDetectionResult = await detectLanguage({ audioDataUri: dataUri });
       
       const langCode = langDetectionResult.languageCode.split('-')[0];
@@ -89,18 +90,21 @@ export default function Home() {
           title: "Unsupported Language",
           description: `The detected language is not Vietnamese or Korean. Detected: ${langCode}`,
         });
-        setIsLoading(false);
+        setIsDetectingLanguage(false);
         return;
       }
       setDetectedLanguage({...langDetectionResult, languageCode: langCode});
+      setIsDetectingLanguage(false);
       
-      setProcessingStep("Converting audio to text...");
+      setIsConvertingToText(true);
       const textConversionResult = await convertAudioToText({ audioDataUri: dataUri });
       const sentences = textConversionResult.sentences.map(
         (text, index) => ({ id: index, text })
       );
       setInitialSentences(sentences);
       setEditedSentences(sentences);
+      setIsConvertingToText(false);
+
     } catch (error) {
       console.error("Error processing audio:", error);
       toast({
@@ -109,16 +113,15 @@ export default function Home() {
         description: "An error occurred while processing the audio file.",
       });
     } finally {
-      setIsLoading(false);
-      setProcessingStep("");
+      setIsDetectingLanguage(false);
+      setIsConvertingToText(false);
     }
   };
 
   const handleTranslate = async () => {
     if (!detectedLanguage || editedSentences.length === 0) return;
 
-    setIsLoading(true);
-    setProcessingStep("Translating...");
+    setIsTranslating(true);
 
     try {
       const sourceLanguage = detectedLanguage.languageCode;
@@ -150,8 +153,7 @@ export default function Home() {
         description: "An error occurred during translation.",
       });
     } finally {
-      setIsLoading(false);
-      setProcessingStep("");
+      setIsTranslating(false);
     }
   };
   
@@ -199,6 +201,8 @@ export default function Home() {
     </Card>
   );
 
+  const isLoading = isDetectingLanguage || isConvertingToText || isTranslating;
+
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="container mx-auto p-4 md:p-8">
@@ -217,7 +221,7 @@ export default function Home() {
               <Input id="audio-file" type="file" onChange={handleFileChange} disabled={isLoading} accept="audio/*,video/*" />
             </SectionCard>
             <SectionCard icon={<Languages size={24} />} title="2. Language Detected" description="The language of the scripture will appear here.">
-              {isLoading && processingStep.startsWith("Detecting") ? renderSkeleton() : (
+              {isDetectingLanguage ? renderSkeleton() : (
                  detectedLanguage ? (
                     <p className="text-lg">
                       Detected Language: <span className="font-bold text-primary">{languageMap[detectedLanguage.languageCode] || 'Unknown'}</span> ({(detectedLanguage.confidence * 100).toFixed(0)}% confidence)
@@ -240,21 +244,21 @@ export default function Home() {
               )
             }
           >
-            {isLoading && processingStep.startsWith("Converting") ? renderSkeleton() : (
+            {isConvertingToText ? renderSkeleton() : (
               initialSentences.length > 0 ? (
                 <TranscriptEditor
                   ref={transcriptEditorRef}
                   sentences={editedSentences}
                   onSentencesChange={setEditedSentences}
                   onTranslate={handleTranslate}
-                  isTranslating={isLoading && processingStep.startsWith("Translating")}
+                  isTranslating={isTranslating}
                 />
               ) : <p className="text-muted-foreground">Awaiting language detection...</p>
             )}
           </SectionCard>
           
           <SectionCard icon={<BookOpen size={24} />} title="4. Translation" description="The translated text will be shown side-by-side.">
-            {isLoading && processingStep.startsWith("Translating") ? renderSkeleton() : (
+            {isTranslating ? renderSkeleton() : (
               translatedSentences.length > 0 ? (
                 <div className="max-h-[500px] overflow-y-auto">
                    <Table>
@@ -280,24 +284,18 @@ export default function Home() {
           
           <SectionCard icon={<BookCheck size={24} />} title="5. Final Copy" description="Copy the full transcript and translation.">
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button onClick={() => copyToClipboard(fullTranscript, "Transcript")} disabled={!fullTranscript} className="flex-1">
+              <Button onClick={() => copyToClipboard(fullTranscript, "Transcript")} disabled={!fullTranscript || isLoading} className="flex-1">
                 <ClipboardCopy className="mr-2 h-4 w-4" /> Copy Full Transcript
               </Button>
-              <Button onClick={() => copyToClipboard(fullTranslation, "Translation")} disabled={!fullTranslation} className="flex-1">
+              <Button onClick={() => copyToClipboard(fullTranslation, "Translation")} disabled={!fullTranslation || isLoading} className="flex-1">
                 <ClipboardCopy className="mr-2 h-4 w-4" /> Copy Full Translation
               </Button>
             </div>
           </SectionCard>
         </div>
       </div>
-       {isLoading && (
-        <div className="fixed inset-0 bg-background/80 flex items-center justify-center z-50">
-          <div className="flex flex-col items-center gap-4 p-8 bg-card rounded-lg shadow-2xl">
-            <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            <p className="text-lg font-headline text-muted-foreground">{processingStep}</p>
-          </div>
-        </div>
-      )}
     </main>
   );
 }
+
+    
