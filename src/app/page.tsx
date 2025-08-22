@@ -96,9 +96,9 @@ export default function Home() {
     setEditedSentences([]);
     setTranslatedSentences([]);
     setHistory([]);
+    setIsDetectingLanguage(true);
 
     try {
-      setIsDetectingLanguage(true);
       const langDetectionResult = await detectLanguage({ audioDataUri: dataUri });
       
       const langCode = langDetectionResult.languageCode.split('-')[0];
@@ -124,8 +124,8 @@ export default function Home() {
         setIsDetectingLanguage(false);
     }
       
+    setIsConvertingToText(true);
     try {
-      setIsConvertingToText(true);
       const textConversionResult = await convertAudioToText({ audioDataUri: dataUri });
       const sentences = textConversionResult.sentences.map(
         (text, index) => ({ id: index, text })
@@ -227,7 +227,7 @@ export default function Home() {
     </Card>
   );
 
-  const isLoading = isDetectingLanguage || isConvertingToText;
+  const isProcessing = isDetectingLanguage || isConvertingToText;
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -244,10 +244,14 @@ export default function Home() {
         <div className="grid grid-cols-1 gap-8">
           <div className="grid md:grid-cols-2 gap-8">
             <SectionCard icon={<FileUp size={24} />} title="1. Upload Audio" description="Start by uploading an audio or video file.">
-              <Input id="audio-file" type="file" onChange={handleFileChange} disabled={isLoading} accept="audio/*,video/*" />
+              <Input id="audio-file" type="file" onChange={handleFileChange} disabled={isProcessing} accept="audio/*,video/*" />
             </SectionCard>
             <SectionCard icon={<Languages size={24} />} title="2. Language Detected" description="The language of the scripture will appear here.">
-              {isDetectingLanguage ? renderSkeleton() : (
+              {isDetectingLanguage ? (
+                <div className="flex items-center space-x-2">
+                    <Loader2 className="h-5 w-5 animate-spin" /> <span>Detecting...</span>
+                </div>
+               ) : (
                  detectedLanguage ? (
                     <p className="text-lg">
                       Detected Language: <span className="font-bold text-primary">{languageMap[detectedLanguage.languageCode] || 'Unknown'}</span> ({(detectedLanguage.confidence * 100).toFixed(0)}% confidence)
@@ -276,7 +280,11 @@ export default function Home() {
               )
             }
           >
-            {isConvertingToText ? renderSkeleton() : (
+            {isConvertingToText ? (
+                <div className="flex items-center space-x-2">
+                    <Loader2 className="h-5 w-5 animate-spin" /> <span>Converting to text...</span>
+                </div>
+            ) : (
               initialSentences.length > 0 ? (
                 <TranscriptEditor
                   ref={transcriptEditorRef}
@@ -290,7 +298,11 @@ export default function Home() {
           </SectionCard>
           
           <SectionCard icon={<BookOpen size={24} />} title="4. Translation" description="The translated text will be shown side-by-side.">
-            {isTranslating ? renderSkeleton() : (
+            {isTranslating ? (
+                <div className="flex items-center space-x-2">
+                    <Loader2 className="h-5 w-5 animate-spin" /> <span>Translating...</span>
+                </div>
+             ) : (
               translatedSentences.length > 0 ? (
                 <div className="max-h-[500px] overflow-y-auto">
                    <Table>
@@ -316,10 +328,10 @@ export default function Home() {
           
           <SectionCard icon={<BookCheck size={24} />} title="5. Final Copy" description="Copy the full transcript and translation.">
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button onClick={() => copyToClipboard(fullTranscript, "Transcript")} disabled={!fullTranscript || isLoading} className="flex-1">
+              <Button onClick={() => copyToClipboard(fullTranscript, "Transcript")} disabled={!fullTranscript || isProcessing} className="flex-1">
                 <ClipboardCopy className="mr-2 h-4 w-4" /> Copy Full Transcript
               </Button>
-              <Button onClick={() => copyToClipboard(fullTranslation, "Translation")} disabled={!fullTranslation || isLoading} className="flex-1">
+              <Button onClick={() => copyToClipboard(fullTranslation, "Translation")} disabled={!fullTranslation || isProcessing} className="flex-1">
                 <ClipboardCopy className="mr-2 h-4 w-4" /> Copy Full Translation
               </Button>
             </div>
@@ -329,3 +341,5 @@ export default function Home() {
     </main>
   );
 }
+
+    

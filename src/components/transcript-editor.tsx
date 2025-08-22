@@ -131,3 +131,5 @@ export const TranscriptEditor = forwardRef<TranscriptEditorHandle, TranscriptEdi
 });
 
 TranscriptEditor.displayName = 'TranscriptEditor';
+
+    
