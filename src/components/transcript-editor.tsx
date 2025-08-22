@@ -3,7 +3,7 @@
 import { useState, useImperativeHandle, forwardRef, useRef } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, Trash2, Languages, Loader2 } from "lucide-react";
+import { Languages, Loader2 } from "lucide-react";
 
 export interface Sentence {
   id: number;
@@ -18,7 +18,12 @@ interface TranscriptEditorProps {
 }
 
 export interface TranscriptEditorHandle {
-  addSentenceAfterFocused: () => void;
+  splitSentenceAtCursor: () => void;
+}
+
+interface EditorFocus {
+  index: number;
+  cursorPosition: number;
 }
 
 let nextId = 1000;
@@ -29,48 +34,56 @@ export const TranscriptEditor = forwardRef<TranscriptEditorHandle, TranscriptEdi
   onTranslate,
   isTranslating,
 }, ref) => {
-  const [focusedIndex, setFocusedIndex] = useState<number | null>(0);
+  const [focusedInfo, setFocusedInfo] = useState<EditorFocus | null>({ index: 0, cursorPosition: 0 });
   const textareaRefs = useRef<(HTMLTextAreaElement | null)[]>([]);
 
   useImperativeHandle(ref, () => ({
-    addSentenceAfterFocused: () => {
-      if (focusedIndex !== null) {
-        addSentenceAfter(focusedIndex);
-      }
+    splitSentenceAtCursor: () => {
+      if (focusedInfo === null) return;
+      
+      const { index: focusedIndex, cursorPosition } = focusedInfo;
+      const sentenceToSplit = sentences[focusedIndex];
+      
+      const textBeforeCursor = sentenceToSplit.text.substring(0, cursorPosition);
+      const textAfterCursor = sentenceToSplit.text.substring(cursorPosition);
+
+      const updatedSentence: Sentence = { ...sentenceToSplit, text: textBeforeCursor };
+      const newSentence: Sentence = { id: nextId++, text: textAfterCursor };
+
+      const newSentences = [...sentences];
+      newSentences.splice(focusedIndex, 1, updatedSentence);
+      newSentences.splice(focusedIndex + 1, 0, newSentence);
+      
+      onSentencesChange(newSentences);
+      
+      setTimeout(() => {
+        const nextTextarea = textareaRefs.current[focusedIndex + 1];
+        if (nextTextarea) {
+          nextTextarea.focus();
+          nextTextarea.setSelectionRange(0, 0);
+        }
+      }, 0);
     },
   }));
   
   const handleTextChange = (id: number, newText: string) => {
-    if (newText.includes('\n')) {
-      return; 
-    }
-    const newSentences = sentences.map((s) =>
-      s.id === id ? { ...s, text: newText } : s
+    onSentencesChange(
+      sentences.map((s) => (s.id === id ? { ...s, text: newText } : s))
     );
-    onSentencesChange(newSentences);
-  };
-
-  const addSentenceAfter = (index: number) => {
-    const newSentence: Sentence = { id: nextId++, text: "" };
-    const newSentences = [...sentences];
-    newSentences.splice(index + 1, 0, newSentence);
-    onSentencesChange(newSentences);
-    
-    setTimeout(() => {
-        const nextTextarea = textareaRefs.current[index + 1];
-        nextTextarea?.focus();
-    }, 0);
-  };
-
-  const removeSentence = (id: number) => {
-    const newSentences = sentences.filter((s) => s.id !== id);
-    onSentencesChange(newSentences);
   };
   
-  const handleFocus = (index: number) => {
-    setFocusedIndex(index);
+  const handleFocus = (index: number, e: React.FocusEvent<HTMLTextAreaElement>) => {
+    setFocusedInfo({ index, cursorPosition: e.target.selectionStart });
   };
   
+  const handleBlur = (e: React.FocusEvent<HTMLTextAreaElement>) => {
+    const textarea = e.target;
+    const index = textareaRefs.current.findIndex(ref => ref === textarea);
+    if(index !== -1){
+        setFocusedInfo({index, cursorPosition: textarea.selectionStart});
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -86,31 +99,12 @@ export const TranscriptEditor = forwardRef<TranscriptEditorHandle, TranscriptEdi
               ref={el => textareaRefs.current[index] = el}
               value={sentence.text}
               onChange={(e) => handleTextChange(sentence.id, e.target.value)}
-              onFocus={() => handleFocus(index)}
+              onFocus={(e) => handleFocus(index, e)}
+              onBlur={handleBlur}
               onKeyDown={handleKeyDown}
               className="w-full font-body bg-background"
               rows={1}
             />
-            <div className="flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-               <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => addSentenceAfter(index)}
-                aria-label="Add paragraph below"
-                className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10"
-              >
-                <PlusCircle size={16} />
-              </Button>
-               <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => removeSentence(sentence.id)}
-                aria-label="Remove paragraph"
-                className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-              >
-                <Trash2 size={16} />
-              </Button>
-            </div>
           </div>
         ))}
       </div>

@@ -164,7 +164,7 @@ export default function Home() {
   };
   
   const handleLineBreak = () => {
-    transcriptEditorRef.current?.addSentenceAfterFocused();
+    transcriptEditorRef.current?.splitSentenceAtCursor();
   };
 
   const fullTranscript = useMemo(() => editedSentences.map(s => s.text).join('\n'), [editedSentences]);
