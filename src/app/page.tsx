@@ -203,7 +203,7 @@ export default function Home() {
     <main className="min-h-screen bg-background text-foreground">
       <div className="container mx-auto p-4 md:p-8">
         <header className="text-center mb-12">
-          <h1 className="font-headline text-5xl font-bold text-primary-dark">
+          <h1 className="font-headline text-5xl font-bold text-primary">
             Verbum Lector
           </h1>
           <p className="text-muted-foreground text-lg mt-2">
@@ -280,10 +280,10 @@ export default function Home() {
           
           <SectionCard icon={<BookCheck size={24} />} title="5. Final Copy" description="Copy the full transcript and translation.">
             <div className="flex flex-col sm:flex-row gap-4">
-              <Button onClick={() => copyToClipboard(fullTranscript, "Transcript")} disabled={!fullTranscript} className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground">
+              <Button onClick={() => copyToClipboard(fullTranscript, "Transcript")} disabled={!fullTranscript} className="flex-1">
                 <ClipboardCopy className="mr-2 h-4 w-4" /> Copy Full Transcript
               </Button>
-              <Button onClick={() => copyToClipboard(fullTranslation, "Translation")} disabled={!fullTranslation} className="flex-1 bg-accent hover:bg-accent/90 text-accent-foreground">
+              <Button onClick={() => copyToClipboard(fullTranslation, "Translation")} disabled={!fullTranslation} className="flex-1">
                 <ClipboardCopy className="mr-2 h-4 w-4" /> Copy Full Translation
               </Button>
             </div>

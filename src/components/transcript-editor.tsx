@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useImperativeHandle, forwardRef } from "react";
+import { useState, useImperativeHandle, forwardRef, useRef } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Trash2, Languages, Loader2 } from "lucide-react";
@@ -30,6 +30,7 @@ export const TranscriptEditor = forwardRef<TranscriptEditorHandle, TranscriptEdi
   isTranslating,
 }, ref) => {
   const [focusedIndex, setFocusedIndex] = useState<number | null>(0);
+  const textareaRefs = useRef<(HTMLTextAreaElement | null)[]>([]);
 
   useImperativeHandle(ref, () => ({
     addSentenceAfterFocused: () => {
@@ -40,6 +41,9 @@ export const TranscriptEditor = forwardRef<TranscriptEditorHandle, TranscriptEdi
   }));
   
   const handleTextChange = (id: number, newText: string) => {
+    if (newText.includes('\n')) {
+      return; 
+    }
     const newSentences = sentences.map((s) =>
       s.id === id ? { ...s, text: newText } : s
     );
@@ -51,6 +55,11 @@ export const TranscriptEditor = forwardRef<TranscriptEditorHandle, TranscriptEdi
     const newSentences = [...sentences];
     newSentences.splice(index + 1, 0, newSentence);
     onSentencesChange(newSentences);
+    
+    setTimeout(() => {
+        const nextTextarea = textareaRefs.current[index + 1];
+        nextTextarea?.focus();
+    }, 0);
   };
 
   const removeSentence = (id: number) => {
@@ -61,6 +70,12 @@ export const TranscriptEditor = forwardRef<TranscriptEditorHandle, TranscriptEdi
   const handleFocus = (index: number) => {
     setFocusedIndex(index);
   };
+  
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -68,9 +83,11 @@ export const TranscriptEditor = forwardRef<TranscriptEditorHandle, TranscriptEdi
         {sentences.map((sentence, index) => (
           <div key={sentence.id} className="group flex items-start gap-2">
             <Textarea
+              ref={el => textareaRefs.current[index] = el}
               value={sentence.text}
               onChange={(e) => handleTextChange(sentence.id, e.target.value)}
               onFocus={() => handleFocus(index)}
+              onKeyDown={handleKeyDown}
               className="w-full font-body bg-background"
               rows={1}
             />
@@ -98,13 +115,13 @@ export const TranscriptEditor = forwardRef<TranscriptEditorHandle, TranscriptEdi
         ))}
       </div>
       <div className="flex justify-end pt-4 border-t">
-        <Button onClick={onTranslate} disabled={isTranslating} size="lg">
+        <Button onClick={onTranslate} disabled={isTranslating || sentences.length === 0} size="lg">
           {isTranslating ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : (
             <Languages className="mr-2 h-4 w-4" />
           )}
-          Translate to {isTranslating ? '...' : 'Target Language'}
+          Translate
         </Button>
       </div>
     </div>
