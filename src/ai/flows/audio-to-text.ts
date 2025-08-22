@@ -34,7 +34,13 @@ const audioToTextPrompt = ai.definePrompt({
   name: 'audioToTextPrompt',
   input: {schema: ConvertAudioToTextInputSchema},
   output: {schema: ConvertAudioToTextOutputSchema},
-  prompt: `You are an expert transcriptionist. Please transcribe the audio provided in the audioDataUri into text, and then split the transcribed text into individual sentences.\n\nAudio: {{media url=audioDataUri}}\n\nEnsure that the output is a valid JSON object with \"transcript\" and \"sentences\" fields. The \"sentences\" field must be a JSON array of strings.`, 
+  prompt: `You are an expert transcriptionist.
+1.  First, transcribe the entire audio provided in the audioDataUri into a single block of text. This will be your 'transcript'.
+2.  Second, split that full transcript into an array of individual sentences. This will be your 'sentences'.
+
+Audio: {{media url=audioDataUri}}
+
+Ensure that the final output is a valid JSON object with both a "transcript" field (containing the full text) and a "sentences" field (containing the array of sentences).`,
 });
 
 const convertAudioToTextFlow = ai.defineFlow(
