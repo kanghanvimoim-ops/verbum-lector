@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, ChangeEvent } from "react";
+import { useState, useMemo, ChangeEvent, useRef } from "react";
 import {
   FileUp,
   Languages,
@@ -9,6 +9,7 @@ import {
   Loader2,
   BookOpen,
   BookCheck,
+  Pilcrow,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -30,7 +31,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { TranscriptEditor, Sentence } from "@/components/transcript-editor";
+import { TranscriptEditor, Sentence, TranscriptEditorHandle } from "@/components/transcript-editor";
 
 import { detectLanguage, DetectLanguageOutput } from "@/ai/flows/detect-language";
 import { convertAudioToText } from "@/ai/flows/audio-to-text";
@@ -52,6 +53,8 @@ export default function Home() {
   const [translatedSentences, setTranslatedSentences] = useState<Sentence[]>(
     []
   );
+
+  const transcriptEditorRef = useRef<TranscriptEditorHandle>(null);
 
   const { toast } = useToast();
 
@@ -159,6 +162,10 @@ export default function Home() {
       description: `The ${type.toLowerCase()} has been copied to your clipboard.`,
     });
   };
+  
+  const handleLineBreak = () => {
+    transcriptEditorRef.current?.addSentenceAfterFocused();
+  };
 
   const fullTranscript = useMemo(() => editedSentences.map(s => s.text).join('\n'), [editedSentences]);
   const fullTranslation = useMemo(() => {
@@ -174,15 +181,18 @@ export default function Home() {
     </div>
   );
   
-  const SectionCard = ({ icon, title, description, children, ...props }: { icon: React.ReactNode; title: string; description: string; children: React.ReactNode;[key: string]: any }) => (
+  const SectionCard = ({ icon, title, description, children, titleAddon, ...props }: { icon: React.ReactNode; title: string; description: string; children: React.ReactNode; titleAddon?: React.ReactNode, [key: string]: any }) => (
     <Card {...props}>
       <CardHeader>
-        <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">{icon}</div>
-          <div>
-            <CardTitle className="font-headline">{title}</CardTitle>
-            <CardDescription>{description}</CardDescription>
-          </div>
+        <div className="flex items-start justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">{icon}</div>
+              <div>
+                <CardTitle className="font-headline">{title}</CardTitle>
+                <CardDescription>{description}</CardDescription>
+              </div>
+            </div>
+            {titleAddon}
         </div>
       </CardHeader>
       <CardContent>{children}</CardContent>
@@ -217,10 +227,23 @@ export default function Home() {
             </SectionCard>
           </div>
 
-          <SectionCard icon={<BookText size={24} />} title="3. Transcript" description="Review and edit the generated text.">
+          <SectionCard 
+            icon={<BookText size={24} />} 
+            title="3. Transcript" 
+            description="Review and edit the generated text."
+            titleAddon={
+              initialSentences.length > 0 && (
+                <Button variant="outline" onClick={handleLineBreak}>
+                  <Pilcrow className="mr-2 h-4 w-4" />
+                  Line Break
+                </Button>
+              )
+            }
+          >
             {isLoading && processingStep.startsWith("Converting") ? renderSkeleton() : (
               initialSentences.length > 0 ? (
                 <TranscriptEditor
+                  ref={transcriptEditorRef}
                   sentences={editedSentences}
                   onSentencesChange={setEditedSentences}
                   onTranslate={handleTranslate}

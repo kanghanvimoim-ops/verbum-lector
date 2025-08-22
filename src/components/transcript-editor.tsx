@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useImperativeHandle, forwardRef } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { PlusCircle, Trash2, Languages, Loader2 } from "lucide-react";
@@ -16,14 +17,27 @@ interface TranscriptEditorProps {
   isTranslating: boolean;
 }
 
+export interface TranscriptEditorHandle {
+  addSentenceAfterFocused: () => void;
+}
+
 let nextId = 1000;
 
-export function TranscriptEditor({
+export const TranscriptEditor = forwardRef<TranscriptEditorHandle, TranscriptEditorProps>(({
   sentences,
   onSentencesChange,
   onTranslate,
   isTranslating,
-}: TranscriptEditorProps) {
+}, ref) => {
+  const [focusedIndex, setFocusedIndex] = useState<number | null>(0);
+
+  useImperativeHandle(ref, () => ({
+    addSentenceAfterFocused: () => {
+      if (focusedIndex !== null) {
+        addSentenceAfter(focusedIndex);
+      }
+    },
+  }));
   
   const handleTextChange = (id: number, newText: string) => {
     const newSentences = sentences.map((s) =>
@@ -43,6 +57,10 @@ export function TranscriptEditor({
     const newSentences = sentences.filter((s) => s.id !== id);
     onSentencesChange(newSentences);
   };
+  
+  const handleFocus = (index: number) => {
+    setFocusedIndex(index);
+  };
 
   return (
     <div className="space-y-4">
@@ -52,6 +70,7 @@ export function TranscriptEditor({
             <Textarea
               value={sentence.text}
               onChange={(e) => handleTextChange(sentence.id, e.target.value)}
+              onFocus={() => handleFocus(index)}
               className="w-full font-body bg-background"
               rows={1}
             />
@@ -90,4 +109,6 @@ export function TranscriptEditor({
       </div>
     </div>
   );
-}
+});
+
+TranscriptEditor.displayName = 'TranscriptEditor';
