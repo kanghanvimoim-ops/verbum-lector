@@ -2,4 +2,4 @@
 import {genkitNext} from '@genkit-ai/next';
 import '@/ai/dev';
 
-export const {GET, POST} = genkitNext();
+export const {GET, POST} = createGenkitHandler({flows:{audioToText},});
