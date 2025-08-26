@@ -1,11 +1,6 @@
 'use server';
-import {genkitNext} from '@genkit-ai/next';
-import {
-  detectLanguage,
-  convertAudioToText,
-  translateSentences,
-} from '@/ai/dev';
+import {createGenkitHandler} from '@genkit-ai/next/plugin';
 
-export const {GET, POST} = genkitNext({
-  flows: [detectLanguage, convertAudioToText, translateSentences],
+export const {GET, POST} = createGenkitHandler({
+  flows: [],
 });
